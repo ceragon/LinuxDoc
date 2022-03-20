@@ -29,6 +29,14 @@ public class RWSemaphore {
     private SpinLock waitLock = new SpinLock();
     private Deque<RWSemWaiter> waitList = new ArrayDeque<>();
 
+    AtomicLong getCount() {
+        return count;
+    }
+
+    Deque<RWSemWaiter> getWaitList() {
+        return waitList;
+    }
+
     public void downRead() throws InterruptedException {
         long newCount = count.addAndGet(1L);
         if (newCount >= 0) {
@@ -122,7 +130,7 @@ public class RWSemaphore {
         RWSemWaiter waiter = iterator.next();
         if ((waiter.getFlags() & RWSEM_WAITING_FOR_WRITE) == 0) {
             if (wakeType == RWSEM_WAKE_ANY
-                    && rwsemAtomicUpdate(0L) < RWSEM_WAITING_BIAS) {
+                    && rwSemAtomicUpdate(0L) < RWSEM_WAITING_BIAS) {
                 return;
             }
             woken = 0;
@@ -138,7 +146,7 @@ public class RWSemaphore {
             if ((waiter.getFlags() & RWSEM_WAITING_FOR_READ) > 0) {
                 adjustment -= RWSEM_WAITING_BIAS;
             }
-            rwsemAtomicAdd(adjustment);
+            rwSemAtomicAdd(adjustment);
             for (loop = woken; loop > 0; loop--) {
                 waiter = waitList.pollFirst();
                 tsk = waiter.getTask();
@@ -156,9 +164,9 @@ public class RWSemaphore {
         }
 
         for (; ; ) {
-            oldcount = rwsemAtomicUpdate(adjustment) - adjustment;
+            oldcount = rwSemAtomicUpdate(adjustment) - adjustment;
             if ((oldcount & RWSEM_ACTIVE_MASK) > 0L) {
-                if ((rwsemAtomicUpdate(-adjustment) & RWSEM_ACTIVE_MASK) > 0) {
+                if ((rwSemAtomicUpdate(-adjustment) & RWSEM_ACTIVE_MASK) > 0) {
                     return;
                 }
                 continue;
@@ -175,11 +183,11 @@ public class RWSemaphore {
     }
 
 
-    private long rwsemAtomicUpdate(long delta) {
+    private long rwSemAtomicUpdate(long delta) {
         return count.getAndAdd(delta) + delta;
     }
 
-    private void rwsemAtomicAdd(long delta) {
+    private void rwSemAtomicAdd(long delta) {
         count.addAndGet(delta);
     }
 }
