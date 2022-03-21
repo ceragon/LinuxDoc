@@ -2,6 +2,9 @@ package io.github.ceragon.rwsemaphore;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class RWSemaphoreTest {
@@ -9,29 +12,43 @@ class RWSemaphoreTest {
     @Test
     void downRead() throws InterruptedException {
         RWSemaphore semaphore = new RWSemaphore();
-        Thread r1 = new Thread(()->{
+
+        List<Thread> list = new ArrayList<>();
+        for (int i = 1; i <= 3; i++) {
+            list.add(newWriter(i, semaphore));
+            list.add(newReader(i, semaphore));
+        }
+
+        list.forEach(Thread::start);
+
+        for (Thread thread : list) {
+            thread.join();
+        }
+
+        assertEquals(semaphore.getCount().get(), 0L);
+        assertTrue(semaphore.getWaitList().isEmpty());
+
+    }
+
+    private Thread newReader(int idx, RWSemaphore semaphore) {
+        return new Thread(() -> {
             try {
                 semaphore.downRead();
                 semaphore.upRead();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-        });
-
-        semaphore.downWrite();
-        r1.start();
-        Thread.sleep(1L);
-        semaphore.upWrite();
-
-        r1.join();
-        assertEquals(semaphore.getCount().get(), 0L);
-        assertTrue(semaphore.getWaitList().isEmpty());
+        }, "reader_" + idx);
     }
 
-
-//    @Test
-//    void downWrite() {
-//    }
-
-
+    private Thread newWriter(int idx, RWSemaphore semaphore) {
+        return new Thread(() -> {
+            try {
+                semaphore.downWrite();
+                semaphore.upWrite();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }, "writer_" + idx);
+    }
 }
