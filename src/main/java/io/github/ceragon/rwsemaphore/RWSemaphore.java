@@ -6,6 +6,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.LockSupport;
 
 public class RWSemaphore {
     private static final long LOW_MASK = 0xFFFFFFFFL;
@@ -117,7 +118,7 @@ public class RWSemaphore {
         waitLock.unlock();
 
         while (waiter.getTask() != null) {
-            current.wait();
+            LockSupport.park(this);
         }
 
         // 获取锁成功
@@ -151,7 +152,7 @@ public class RWSemaphore {
                 waiter = waitList.pollFirst();
                 tsk = waiter.getTask();
                 waiter.setTask(null);
-                tsk.notify();
+                tsk.interrupt();
             }
             return;
         }
@@ -176,7 +177,7 @@ public class RWSemaphore {
             tsk = waiter.getTask();
             waiter.setTask(null);
 
-            tsk.notify();
+            tsk.interrupt();
             return;
         }
 
