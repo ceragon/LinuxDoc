@@ -16,6 +16,7 @@ class RWSemaphoreTest {
         List<Thread> list = new ArrayList<>();
         for (int i = 1; i <= 3; i++) {
             list.add(newWriter(i, semaphore));
+            list.add(newWriter2Reader(i, semaphore));
             list.add(newReader(i, semaphore));
         }
 
@@ -50,5 +51,17 @@ class RWSemaphoreTest {
                 e.printStackTrace();
             }
         }, "writer_" + idx);
+    }
+
+    private Thread newWriter2Reader(int idx, RWSemaphore semaphore) {
+        return new Thread(() -> {
+            try {
+                semaphore.downWrite();
+                semaphore.downgradeWrite();
+                semaphore.upRead();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }, "writer2reader_" + idx);
     }
 }

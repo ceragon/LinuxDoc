@@ -75,6 +75,15 @@ public class RWSemaphore {
         callRWSemWake(tmp);
     }
 
+    public void downgradeWrite() {
+        long tmp = count.addAndGet(-RWSEM_WAITING_BIAS);
+        if (tmp >= 0){
+            // 降级成功
+            return;
+        }
+        rwSemDowngradeWake();
+    }
+
     private void callRWSemWake(long oldCount) {
         if ((oldCount & LOW_MASK) - 1 != 0) {
             // 解锁成功
@@ -183,6 +192,15 @@ public class RWSemaphore {
 
     }
 
+    private void rwSemDowngradeWake(){
+        waitLock.lock();
+
+        if (!waitList.isEmpty()){
+            rwSemDoWake(RWSEM_WAKE_READ_OWNED);
+        }
+
+        waitLock.unlock();
+    }
 
     private long rwSemAtomicUpdate(long delta) {
         return count.getAndAdd(delta) + delta;
